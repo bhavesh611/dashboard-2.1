@@ -1,0 +1,360 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  TrendingUp,
+  Activity,
+  FileCode,
+  ArrowRight,
+} from 'lucide-react';
+import Link from 'next/link';
+import useStore from '@/lib/state';
+import EmptyState from '@/components/EmptyState';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+
+export default function DashboardPage() {
+  const { activeExecutions, history, getTotalTestCases } = useStore();
+  
+  // Get ONLY running executions (not completed)
+  const runningExecutions = activeExecutions.filter((e) => e.status === 'running');
+  
+  // Calculate REAL metrics from actual execution data
+  const totalTestCases = getTotalTestCases();
+  
+  // Combine history + completed active executions
+  const allExecutions = [...history, ...activeExecutions.filter(e => e.status === 'completed')];
+  
+  // Calculate totals from all executions
+  const totalTestsRun = allExecutions.reduce((sum, exec) => {
+    if ('totalTests' in exec) {
+      return sum + exec.totalTests;
+    }
+    return sum + exec.testCases.length;
+  }, 0);
+  
+  const totalPassed = allExecutions.reduce((sum, exec) => {
+    if ('passedTests' in exec) {
+      return sum + exec.passedTests;
+    }
+    return sum + exec.testCases.filter(tc => tc.status === 'passed').length;
+  }, 0);
+  
+  const totalFailed = allExecutions.reduce((sum, exec) => {
+    if ('failedTests' in exec) {
+      return sum + exec.failedTests;
+    }
+    return sum + exec.testCases.filter(tc => tc.status === 'failed').length;
+  }, 0);
+  
+  const passRate = totalTestsRun > 0 ? Math.round((totalPassed / totalTestsRun) * 100) : 0;
+
+  // Chart data from real executions
+  const chartData = allExecutions.slice(0, 7).reverse().map((exec, i) => {
+    let passed = 0;
+    let failed = 0;
+    let total = 0;
+    
+    if ('passedTests' in exec) {
+      passed = exec.passedTests;
+      failed = exec.failedTests;
+      total = exec.totalTests;
+    } else {
+      passed = exec.testCases.filter(tc => tc.status === 'passed').length;
+      failed = exec.testCases.filter(tc => tc.status === 'failed').length;
+      total = exec.testCases.length;
+    }
+    
+    return {
+      name: `Run ${allExecutions.length - i}`,
+      passed,
+      failed,
+      passRate: total > 0 ? Math.round((passed / total) * 100) : 0,
+    };
+  });
+
+  const MetricCard = ({
+    icon: Icon,
+    label,
+    value,
+    color,
+    delay = 0,
+  }: {
+    icon: any;
+    label: string;
+    value: string | number;
+    color: string;
+    delay?: number;
+  }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, type: 'spring', stiffness: 200 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xl transition-all shadow-lg"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <motion.div
+          whileHover={{ rotate: [0, -10, 10, 0] }}
+          transition={{ duration: 0.5 }}
+          className={`w-12 h-12 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center`}
+        >
+          <Icon className="w-6 h-6 text-white" />
+        </motion.div>
+      </div>
+      <motion.h3
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: delay + 0.1 }}
+        className="text-3xl font-bold text-slate-900 dark:text-white mb-1"
+      >
+        {value}
+      </motion.h3>
+      <p className="text-slate-500 dark:text-slate-400 text-sm">{label}</p>
+    </motion.div>
+  );
+
+  return (
+    <div className="p-6 space-y-6 bg-slate-50 dark:bg-slate-950 min-h-full">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Dashboard</h1>
+        <p className="text-slate-600 dark:text-slate-400">Monitor your automation testing performance</p>
+      </motion.div>
+
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <MetricCard
+          icon={FileCode}
+          label="Total Test Cases"
+          value={totalTestCases}
+          color="from-violet-600 to-purple-600"
+          delay={0}
+        />
+        <MetricCard
+          icon={Activity}
+          label="Active Executions"
+          value={runningExecutions.length}
+          color="from-green-600 to-emerald-600"
+          delay={0.05}
+        />
+        <MetricCard
+          icon={CheckCircle}
+          label="Tests Passed"
+          value={totalPassed}
+          color="from-blue-600 to-cyan-600"
+          delay={0.1}
+        />
+        <MetricCard
+          icon={XCircle}
+          label="Tests Failed"
+          value={totalFailed}
+          color="from-red-600 to-rose-600"
+          delay={0.15}
+        />
+        <MetricCard
+          icon={TrendingUp}
+          label="Pass Rate"
+          value={`${passRate}%`}
+          color="from-amber-600 to-orange-600"
+          delay={0.2}
+        />
+      </div>
+
+      {/* Charts Section */}
+      {allExecutions.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.25 }}
+            whileHover={{ scale: 1.01 }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Test Results Overview</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    color: '#fff',
+                  }}
+                />
+                <Bar dataKey="passed" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            whileHover={{ scale: 1.01 }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all"
+          >
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Pass Rate Trend</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 100]} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    color: '#fff',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="passRate"
+                  stroke="#8b5cf6"
+                  strokeWidth={3}
+                  dot={{ fill: '#8b5cf6', r: 5 }}
+                  activeDot={{ r: 7 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </motion.div>
+        </div>
+      ) : null}
+
+      {/* Recent Executions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Executions</h3>
+          <Link href="/history">
+            <motion.button
+              whileHover={{ x: 5 }}
+              className="flex items-center gap-2 text-sm text-violet-600 hover:text-violet-500 transition-colors"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-4 h-4" />
+            </motion.button>
+          </Link>
+        </div>
+
+        {allExecutions.length > 0 ? (
+          <div className="space-y-3">
+            {allExecutions.slice(0, 5).map((exec, index) => {
+              let id, target, browser, status, startTime, totalTests, passedTests, failedTests;
+              
+              if ('id' in exec && 'target' in exec) {
+                ({ id, target, browser, status, startTime, totalTests, passedTests, failedTests } = exec);
+              } else {
+                id = exec.id;
+                target = exec.files.join(', ');
+                browser = exec.browser.charAt(0).toUpperCase() + exec.browser.slice(1);
+                const passed = exec.testCases.filter(tc => tc.status === 'passed').length;
+                const failed = exec.testCases.filter(tc => tc.status === 'failed').length;
+                totalTests = exec.testCases.length;
+                passedTests = passed;
+                failedTests = failed;
+                
+                if (exec.status === 'running') {
+                  status = 'partial';
+                } else if (failed === 0) {
+                  status = 'passed';
+                } else if (passed === 0) {
+                  status = 'failed';
+                } else {
+                  status = 'partial';
+                }
+                
+                startTime = new Date(exec.startTime).toLocaleString();
+              }
+              
+              return (
+                <motion.div
+                  key={id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
+                  whileHover={{ x: 4, scale: 1.01 }}
+                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer border border-transparent hover:border-violet-600/30"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <motion.div
+                      whileHover={{ rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        status === 'passed'
+                          ? 'bg-green-600/20'
+                          : status === 'failed'
+                          ? 'bg-red-600/20'
+                          : 'bg-yellow-600/20'
+                      }`}
+                    >
+                      {status === 'passed' ? (
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                      ) : status === 'failed' ? (
+                        <XCircle className="w-5 h-5 text-red-400" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-yellow-400" />
+                      )}
+                    </motion.div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{target}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {browser} • {startTime}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">
+                        {passedTests}/{totalTests}
+                      </p>
+                      <p className="text-xs text-slate-400">Passed</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-red-600 dark:text-red-400">{failedTests}</p>
+                      <p className="text-xs text-slate-400">Failed</p>
+                    </div>
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        status === 'passed'
+                          ? 'bg-green-600/20 text-green-400 border border-green-600/50'
+                          : status === 'failed'
+                          ? 'bg-red-600/20 text-red-400 border border-red-600/50'
+                          : 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/50'
+                      }`}
+                    >
+                      {status === 'passed' ? 'PASSED' : status === 'failed' ? 'FAILED' : 'RUNNING'}
+                    </motion.div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Clock}
+            title="No Execution History"
+            description="Run your first test to see execution history here"
+            actionLabel="Explore Tests"
+            actionHref="/file-explorer"
+          />
+        )}
+      </motion.div>
+    </div>
+  );
+}

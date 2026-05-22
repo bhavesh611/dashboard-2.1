@@ -1,0 +1,42 @@
+{
+  "tests": {
+    "type": "folder",
+    "children": {
+      "Creative": {
+        "type": "folder",
+        "children": {
+          "test_image.py": {
+            "type": "file",
+            "content": "import pytest\\nfrom selenium import webdriver\\n\\ndef test_image_load():\\n    driver = webdriver.Chrome()\\n    driver.get('http://example.com')\\n    assert True\\n    driver.quit()"
+          },
+          "test_video.py": {
+            "type": "file",
+            "content": "import pytest\\n\\ndef test_video_playback():\\n    # TODO: Implement video logic\\n    pass"
+          }
+        }
+      },
+      "Login": {
+        "type": "folder",
+        "children": {
+          "test_login.py": {
+            "type": "file",
+            "content": "import pytest\\n\\ndef test_valid_login():\\n    assert True\\n\\ndef test_invalid_password():\\n    assert False"
+          }
+        }
+      },
+      "Checkout": {
+        "type": "folder",
+        "children": {
+          "test_cart.py": {
+            "type": "file",
+            "content": "import pytest\\nfrom selenium import webdriver\\n\\ndef test_add_to_cart():\\n    driver = webdriver.Chrome()\\n    driver.get('http://example.com/cart')\\n    # Add item to cart\\n    assert True\\n    driver.quit()\\n\\ndef test_remove_from_cart():\\n    driver = webdriver.Chrome()\\n    driver.get('http://example.com/cart')\\n    # Remove item\\n    assert True\\n    driver.quit()"
+          },
+          "test_payment.py": {
+            "type": "file",
+            "content": "import pytest\\n\\ndef test_payment_success():\\n    # Simulate successful payment\\n    assert True\\n\\ndef test_payment_failure():\\n    # Simulate payment failure\\n    assert False"
+          }
+        }
+      }
+    }
+  }
+}
