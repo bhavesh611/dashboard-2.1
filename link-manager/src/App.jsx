@@ -1,4 +1,22 @@
 import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ── Supabase client ───────────────────────────────────────────────────────────
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
+async function fetchAll() {
+  const { data, error } = await supabase
+    .from("links")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const links = data ?? [];
+  const categories = [...new Set(links.map((l) => l.category).filter((c) => c && c !== "Uncategorised"))];
+  return { links, categories };
+}
 
 // ── Google Fonts ──────────────────────────────────────────────────────────────
 const FontLoader = () => (
@@ -13,10 +31,6 @@ const FontLoader = () => (
       --ink: #2c2416;
       --ink-light: #6b5d4f;
       --clip: #c0a882;
-      --tape-yellow: #f5e07a;
-      --tape-pink: #f7b8c4;
-      --tape-blue: #a8d4f5;
-      --tape-green: #b8e4c0;
     }
 
     html, body { height: 100%; }
@@ -29,7 +43,6 @@ const FontLoader = () => (
       overflow-x: hidden;
     }
 
-    /* Paper texture via repeating pattern */
     body::before {
       content: '';
       position: fixed;
@@ -46,12 +59,10 @@ const FontLoader = () => (
 
     .handwritten { font-family: 'Caveat', cursive; }
 
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--clip); border-radius: 99px; }
 
-    /* Bottom sheet backdrop */
     .backdrop {
       position: fixed; inset: 0;
       background: rgba(44,36,22,0.35);
@@ -61,7 +72,6 @@ const FontLoader = () => (
     }
     @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 
-    /* Bottom sheet */
     .sheet {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: var(--cream);
@@ -85,20 +95,12 @@ const FontLoader = () => (
       margin: 12px auto 0;
     }
 
-    /* Card tilt variants */
-    .tilt-1 { transform: rotate(-1.2deg); }
-    .tilt-2 { transform: rotate(0.8deg); }
-    .tilt-3 { transform: rotate(-0.5deg); }
-    .tilt-4 { transform: rotate(1.5deg); }
-    .tilt-0 { transform: rotate(0deg); }
-
     .card-wrap:hover .card-inner {
       transform: scale(1.02) rotate(0deg) !important;
       box-shadow: 0 8px 32px rgba(44,36,22,0.18) !important;
     }
     .card-wrap { transition: transform 0.2s ease; }
 
-    /* Washi tape */
     .washi {
       position: absolute;
       top: -10px; left: 50%;
@@ -109,14 +111,12 @@ const FontLoader = () => (
       z-index: 2;
     }
 
-    /* Paperclip SVG top-right */
-    .clip {
+    .clip-badge {
       position: absolute;
       top: -14px; right: 16px;
       z-index: 3;
     }
 
-    /* Input styles */
     .diary-input {
       width: 100%;
       background: rgba(255,255,255,0.5);
@@ -132,15 +132,8 @@ const FontLoader = () => (
     }
     .diary-input:focus { border-bottom-color: #a0522d; background: rgba(255,255,255,0.8); }
     .diary-input::placeholder { color: var(--ink-light); opacity: 0.6; }
-
     textarea.diary-input { border-radius: 8px; resize: vertical; min-height: 72px; }
 
-    /* Priority dot */
-    .priority-high  { background: #e85d4a; }
-    .priority-mid   { background: #f5a623; }
-    .priority-low   { background: #6cc56a; }
-
-    /* Tag pill */
     .tag-pill {
       font-size: 11px;
       background: rgba(192,168,130,0.18);
@@ -151,7 +144,6 @@ const FontLoader = () => (
       white-space: nowrap;
     }
 
-    /* Category pill tabs */
     .cat-pill {
       flex-shrink: 0;
       font-family: 'Caveat', cursive;
@@ -167,7 +159,6 @@ const FontLoader = () => (
     .cat-pill.active { color: #fff !important; border-color: transparent; }
     .cat-pill:not(.active) { background: transparent !important; border-color: currentColor; opacity: 0.65; }
 
-    /* Summary box */
     .summary-box {
       background: #fffde7;
       border: 1.5px dashed #e6c84a;
@@ -179,7 +170,6 @@ const FontLoader = () => (
       margin-top: 8px;
     }
 
-    /* FAB */
     .fab {
       position: fixed;
       bottom: calc(24px + env(safe-area-inset-bottom, 0px));
@@ -198,7 +188,6 @@ const FontLoader = () => (
     }
     .fab:active { transform: scale(0.92); }
 
-    /* Doodle divider */
     .doodle-div {
       width: 100%;
       height: 2px;
@@ -212,7 +201,6 @@ const FontLoader = () => (
       margin: 4px 0 16px;
     }
 
-    /* unDraw placeholder colors per category */
     .ill-wrap {
       width: 100%; height: 130px;
       display: flex; align-items: center; justify-content: center;
@@ -248,8 +236,8 @@ const FontLoader = () => (
       transition: opacity 0.15s;
     }
     .btn-primary:active { opacity: 0.75; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Copied toast */
     .toast {
       position: fixed;
       bottom: 90px; left: 50%;
@@ -292,10 +280,10 @@ const PALETTES = [
   { bg: "#fde8f0", accent: "#c8396e", tape: "#f7b8c4", ill: "#e05080" },
 ];
 
-const palette = (idx) => PALETTES[idx % PALETTES.length];
-const tiltClass = (idx) => `tilt-${idx % 5}`;
+const palette = (idx) => PALETTES[((idx % PALETTES.length) + PALETTES.length) % PALETTES.length];
+const tiltDeg = (idx) => [-1.2, 0.8, -0.5, 1.5, 0][idx % 5];
 
-// ── unDraw SVG illustrations (inline, vibrant) ────────────────────────────────
+// ── SVG Illustrations ─────────────────────────────────────────────────────────
 const Illustrations = {
   learning: (color) => (
     <svg viewBox="0 0 200 130" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%"}}>
@@ -331,13 +319,13 @@ const Illustrations = {
 };
 
 const getIllustration = (catName, color) => {
-  const n = catName?.toLowerCase() || "";
+  const n = catName?.toLowerCase() ?? "";
   if (n.includes("learn") || n.includes("course") || n.includes("study")) return Illustrations.learning(color);
   if (n.includes("tool") || n.includes("dev") || n.includes("code")) return Illustrations.tools(color);
   return Illustrations.default(color);
 };
 
-// ── Paperclip SVG ─────────────────────────────────────────────────────────────
+// ── Paperclip ─────────────────────────────────────────────────────────────────
 const Paperclip = ({ color = "#c0a882" }) => (
   <svg width="22" height="42" viewBox="0 0 22 42" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M11 2C6.58172 2 3 5.58172 3 10V32C3 37.5228 7.47715 42 13 42C18.5228 42 23 37.5228 23 32V8" stroke={color} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
@@ -345,26 +333,13 @@ const Paperclip = ({ color = "#c0a882" }) => (
   </svg>
 );
 
-// ── Storage helpers (localStorage) ───────────────────────────────────────────
-const STORAGE_KEY = "linkmanager-v1";
-
-function loadData() {
-  try {
-    const r = localStorage.getItem(STORAGE_KEY);
-    return r ? JSON.parse(r) : { links: [], categories: [] };
-  } catch { return { links: [], categories: [] }; }
-}
-
-function saveData(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-}
-
-// ── Priority label ────────────────────────────────────────────────────────────
 const PRIORITIES = ["low", "mid", "high"];
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [data, setData] = useState(() => loadData());
+  const [data, setData] = useState({ links: [], categories: [] });
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [sheet, setSheet] = useState(null);
   const [editLink, setEditLink] = useState(null);
@@ -378,80 +353,86 @@ export default function App() {
     return { title: "", url: "", notes: "", category: "", tags: "", priority: "mid" };
   }
 
-  // Persist on change
   useEffect(() => {
-    saveData(data);
-  }, [data]);
+    fetchAll()
+      .then(setData)
+      .catch(() => showToast("⚠️ Could not load links"))
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const refresh = () => fetchAll().then(setData).catch(() => {});
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
 
-  // ── Categories derived ──────────────────────────────────────────────────────
   const allCategories = ["All", ...data.categories];
 
-  // ── Filtered links ──────────────────────────────────────────────────────────
-  const visibleLinks = data.links.filter(l => {
+  const visibleLinks = data.links.filter((l) => {
     const matchCat = activeCategory === "All" || l.category === activeCategory;
     const q = search.toLowerCase();
-    const matchSearch = !q || l.title.toLowerCase().includes(q) || l.url.toLowerCase().includes(q) || (l.notes || "").toLowerCase().includes(q);
+    const matchSearch = !q || l.title.toLowerCase().includes(q) || l.url.toLowerCase().includes(q) || (l.notes ?? "").toLowerCase().includes(q);
     return matchCat && matchSearch;
   });
 
-  // Group by category
   const grouped = {};
-  visibleLinks.forEach(l => {
+  visibleLinks.forEach((l) => {
     const k = l.category || "Uncategorised";
     if (!grouped[k]) grouped[k] = [];
     grouped[k].push(l);
   });
 
-  // ── Add / Edit ──────────────────────────────────────────────────────────────
   const openAdd = () => { setForm(emptyForm()); setEditLink(null); setSheet("add"); };
-  const openEdit = (link) => { setForm({ ...link, tags: (link.tags || []).join(", ") }); setEditLink(link); setSheet("edit"); };
+  const openEdit = (link) => { setForm({ ...link, tags: (link.tags ?? []).join(", ") }); setEditLink(link); setSheet("edit"); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.url.trim() || !form.title.trim()) return;
-    const tags = form.tags.split(",").map(t => t.trim()).filter(Boolean);
+    setSaving(true);
+    const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
     const catName = form.category.trim() || "Uncategorised";
-    const newLink = {
-      ...form, tags, category: catName,
-      id: editLink?.id || Date.now().toString(),
-      saved: editLink?.saved || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-    };
-    let newCats = [...data.categories];
-    if (catName !== "Uncategorised" && !newCats.includes(catName)) newCats.push(catName);
-    if (editLink) {
-      setData(d => ({ ...d, links: d.links.map(l => l.id === editLink.id ? newLink : l), categories: newCats }));
-    } else {
-      setData(d => ({ ...d, links: [newLink, ...d.links], categories: newCats }));
+    const saved = editLink?.saved ?? new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const record = { title: form.title.trim(), url: form.url.trim(), notes: form.notes, category: catName, tags, priority: form.priority, saved };
+
+    try {
+      if (editLink) {
+        const { error } = await supabase.from("links").update(record).eq("id", editLink.id);
+        if (error) throw error;
+      } else {
+        const id = Date.now().toString();
+        const { error } = await supabase.from("links").insert({ id, ...record });
+        if (error) throw error;
+      }
+      await refresh();
+      setSheet(null);
+      showToast(editLink ? "✏️ Updated!" : "📌 Pinned!");
+    } catch {
+      showToast("⚠️ Save failed");
+    } finally {
+      setSaving(false);
     }
-    setSheet(null);
-    showToast(editLink ? "✏️ Updated!" : "📌 Pinned!");
   };
 
-  const deleteLink = (id) => {
-    setData(d => ({ ...d, links: d.links.filter(l => l.id !== id) }));
-    showToast("🗑 Removed");
+  const deleteLink = async (id) => {
+    // Optimistic remove
+    setData((d) => ({ ...d, links: d.links.filter((l) => l.id !== id) }));
+    const { error } = await supabase.from("links").delete().eq("id", id);
+    if (error) {
+      showToast("⚠️ Delete failed");
+      await refresh();
+    } else {
+      showToast("🗑 Removed");
+    }
   };
 
-  // ── Summaries ───────────────────────────────────────────────────────────────
   const buildSinglePrompt = (link) =>
     `Please summarise this link for me:\n\nTitle: ${link.title}\nURL: ${link.url}${link.notes ? `\nNotes: ${link.notes}` : ""}${link.tags?.length ? `\nTags: ${link.tags.join(", ")}` : ""}\n\nGive me a concise summary of what this resource is about.`;
 
   const buildGroupPrompt = (catName, links) =>
     `Please summarise these links from my "${catName}" collection:\n\n${links.map((l, i) => `${i + 1}. ${l.title}\n   URL: ${l.url}${l.notes ? `\n   Notes: ${l.notes}` : ""}${l.tags?.length ? `\n   Tags: ${l.tags.join(", ")}` : ""}`).join("\n\n")}\n\nGive me a combined summary of what these resources cover and key takeaways.`;
 
-  const openSummaryLink = (link) => {
-    setSummaryContent({ title: link.title, prompt: buildSinglePrompt(link) });
-    setSheet("summary");
-  };
-
-  const openSummaryGroup = (catName, links) => {
-    setSummaryContent({ title: `${catName} (${links.length} links)`, prompt: buildGroupPrompt(catName, links) });
-    setSheet("summary");
-  };
+  const openSummaryLink = (link) => { setSummaryContent({ title: link.title, prompt: buildSinglePrompt(link) }); setSheet("summary"); };
+  const openSummaryGroup = (catName, links) => { setSummaryContent({ title: `${catName} (${links.length} links)`, prompt: buildGroupPrompt(catName, links) }); setSheet("summary"); };
 
   const handleSummarise = () => {
     navigator.clipboard?.writeText(summaryContent.prompt).catch(() => {});
@@ -460,30 +441,35 @@ export default function App() {
     setSheet(null);
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  if (!loaded) return (
+    <>
+      <FontLoader />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Caveat, cursive", fontSize: 24, color: "var(--ink-light)" }}>
+        loading your diary…
+      </div>
+    </>
+  );
+
   return (
     <>
       <FontLoader />
 
-      {/* ── TOP BAR ── */}
+      {/* TOP BAR */}
       <div style={{ position: "sticky", top: 0, zIndex: 20, background: "var(--cream)", borderBottom: "1.5px solid var(--cream-dark)", padding: "0 16px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, maxWidth: 768, margin: "0 auto" }}>
-          <span className="handwritten" style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.5px" }}>
-            my links ✦
-          </span>
-          <button onClick={() => setShowSearch(s => !s)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--ink-light)", padding: 4 }}>
+          <span className="handwritten" style={{ fontSize: 26, fontWeight: 700, color: "var(--ink)", letterSpacing: "-0.5px" }}>my links ✦</span>
+          <button onClick={() => setShowSearch((s) => !s)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--ink-light)", padding: 4 }}>
             {showSearch ? "✕" : "🔍"}
           </button>
         </div>
         {showSearch && (
           <div style={{ paddingBottom: 10, maxWidth: 768, margin: "0 auto" }}>
-            <input className="diary-input" placeholder="search links…" value={search} onChange={e => setSearch(e.target.value)} style={{ borderRadius: 99, borderBottom: "1.5px solid var(--cream-dark)" }} />
+            <input className="diary-input" placeholder="search links…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ borderRadius: 99, borderBottom: "1.5px solid var(--cream-dark)" }} />
           </div>
         )}
-        {/* Category pills */}
         <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 10, paddingTop: 2, maxWidth: 768, margin: "0 auto", scrollbarWidth: "none" }}>
           {allCategories.map((cat, i) => {
-            const pal = i === 0 ? { accent: "var(--ink)", bg: "var(--ink)" } : palette(i - 1);
+            const pal = i === 0 ? { accent: "var(--ink)" } : palette(i - 1);
             return (
               <button key={cat} className={`cat-pill ${activeCategory === cat ? "active" : ""}`}
                 style={{ color: pal.accent, background: activeCategory === cat ? pal.accent : "transparent" }}
@@ -495,7 +481,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* MAIN */}
       <div style={{ padding: "20px 16px 100px", maxWidth: 768, margin: "0 auto" }}>
         {Object.keys(grouped).length === 0 && (
           <div style={{ textAlign: "center", paddingTop: 60 }}>
@@ -506,11 +492,10 @@ export default function App() {
           </div>
         )}
 
-        {Object.entries(grouped).map(([catName, links], gi) => {
+        {Object.entries(grouped).map(([catName, links]) => {
           const pal = palette(data.categories.indexOf(catName));
           return (
             <div key={catName} style={{ marginBottom: 36 }}>
-              {/* Category header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                 <span className="handwritten" style={{ fontSize: 22, fontWeight: 700, color: pal.accent }}>
                   {catName}
@@ -524,11 +509,9 @@ export default function App() {
                 </button>
               </div>
               <div className="doodle-div" style={{ background: `repeating-linear-gradient(90deg, ${pal.accent} 0px, ${pal.accent} 6px, transparent 6px, transparent 12px)` }} />
-
-              {/* Cards grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))", gap: 20 }}>
                 {links.map((link, li) => (
-                  <LinkCard key={link.id} link={link} palette={pal} tilt={tiltClass(li)} catName={catName}
+                  <LinkCard key={link.id} link={link} pal={pal} deg={tiltDeg(li)} catName={catName}
                     onEdit={() => openEdit(link)}
                     onDelete={() => deleteLink(link.id)}
                     onSummarise={() => openSummaryLink(link)} />
@@ -539,47 +522,44 @@ export default function App() {
         })}
       </div>
 
-      {/* ── FAB ── */}
+      {/* FAB */}
       <button className="fab" onClick={openAdd}>＋</button>
 
-      {/* ── SHEETS ── */}
+      {/* SHEETS */}
       {sheet && (
         <>
           <div className="backdrop" onClick={() => setSheet(null)} />
           <div className="sheet">
             <div className="sheet-handle" />
 
-            {/* Add / Edit form */}
             {(sheet === "add" || sheet === "edit") && (
               <div style={{ padding: "16px 20px 32px" }}>
                 <p className="handwritten" style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>
                   {sheet === "edit" ? "✏️ edit link" : "📌 pin a link"}
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input className="diary-input" placeholder="URL *" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
-                  <input className="diary-input" placeholder="Title *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-                  <input className="diary-input" placeholder="Category (e.g. Learning, Tools…)" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} list="cat-suggestions" />
-                  <datalist id="cat-suggestions">{data.categories.map(c => <option key={c} value={c} />)}</datalist>
-                  <input className="diary-input" placeholder="Tags (comma separated)" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} />
-                  <textarea className="diary-input" placeholder="Notes…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-                  {/* Priority */}
+                  <input className="diary-input" placeholder="URL *" value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
+                  <input className="diary-input" placeholder="Title *" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+                  <input className="diary-input" placeholder="Category (e.g. Learning, Tools…)" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} list="cat-suggestions" />
+                  <datalist id="cat-suggestions">{data.categories.map((c) => <option key={c} value={c} />)}</datalist>
+                  <input className="diary-input" placeholder="Tags (comma separated)" value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} />
+                  <textarea className="diary-input" placeholder="Notes…" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ fontSize: 13, color: "var(--ink-light)" }}>Priority:</span>
-                    {PRIORITIES.map(p => (
-                      <button key={p} onClick={() => setForm(f => ({ ...f, priority: p }))}
+                    {PRIORITIES.map((p) => (
+                      <button key={p} onClick={() => setForm((f) => ({ ...f, priority: p }))}
                         style={{ padding: "4px 14px", borderRadius: 99, border: `2px solid ${form.priority === p ? "var(--ink)" : "var(--cream-dark)"}`, background: form.priority === p ? "var(--ink)" : "transparent", color: form.priority === p ? "#fff" : "var(--ink-light)", fontFamily: "Caveat, cursive", fontSize: 15, cursor: "pointer" }}>
                         {p}
                       </button>
                     ))}
                   </div>
-                  <button className="btn-primary" onClick={handleSave}>
-                    {sheet === "edit" ? "save changes" : "pin it ✦"}
+                  <button className="btn-primary" onClick={handleSave} disabled={saving}>
+                    {saving ? "saving…" : sheet === "edit" ? "save changes" : "pin it ✦"}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Summary sheet */}
             {sheet === "summary" && (
               <div style={{ padding: "16px 20px 32px" }}>
                 <p className="handwritten" style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>✨ summarise</p>
@@ -600,48 +580,32 @@ export default function App() {
         </>
       )}
 
-      {/* ── TOAST ── */}
       {toast && <div className="toast">{toast}</div>}
     </>
   );
 }
 
 // ── Link Card ─────────────────────────────────────────────────────────────────
-function LinkCard({ link, palette: pal, tilt, catName, onEdit, onDelete, onSummarise }) {
+function LinkCard({ link, pal, deg, catName, onEdit, onDelete, onSummarise }) {
   const [expanded, setExpanded] = useState(false);
-
-  const priorityColor = { high: "#e85d4a", mid: "#f5a623", low: "#6cc56a" }[link.priority] || "#c0a882";
-
-  const tiltDeg = tilt.includes("tilt-1") ? -1.2
-    : tilt.includes("tilt-2") ? 0.8
-    : tilt.includes("tilt-3") ? -0.5
-    : tilt.includes("tilt-4") ? 1.5
-    : 0;
+  const priorityColor = { high: "#e85d4a", mid: "#f5a623", low: "#6cc56a" }[link.priority] ?? "#c0a882";
 
   return (
     <div className="card-wrap" style={{ position: "relative", paddingTop: 12 }}>
-      {/* Washi tape */}
       <div className="washi" style={{ background: pal.tape }} />
-      {/* Paperclip */}
-      <div className="clip"><Paperclip color={pal.accent} /></div>
-
+      <div className="clip-badge"><Paperclip color={pal.accent} /></div>
       <div className="card-inner" style={{
-        background: pal.bg,
-        borderRadius: 12,
-        padding: "14px 14px 12px",
+        background: pal.bg, borderRadius: 12, padding: "14px 14px 12px",
         boxShadow: "0 3px 14px rgba(44,36,22,0.12)",
-        transform: `rotate(${tiltDeg}deg)`,
+        transform: `rotate(${deg}deg)`,
         transition: "all 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-        cursor: "pointer",
-        userSelect: "none",
-      }} onClick={() => setExpanded(e => !e)}>
+        cursor: "pointer", userSelect: "none",
+      }} onClick={() => setExpanded((e) => !e)}>
 
-        {/* Illustration */}
         <div className="ill-wrap" style={{ background: `${pal.accent}18` }}>
           {getIllustration(catName, pal.ill)}
         </div>
 
-        {/* Priority dot + title row */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: priorityColor, marginTop: 5, flexShrink: 0 }} />
           <span className="handwritten" style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", lineHeight: 1.3, wordBreak: "break-word" }}>
@@ -649,30 +613,26 @@ function LinkCard({ link, palette: pal, tilt, catName, onEdit, onDelete, onSumma
           </span>
         </div>
 
-        {/* URL preview */}
         <p style={{ fontSize: 11, color: pal.accent, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>
           {link.url.replace(/^https?:\/\//, "")}
         </p>
 
-        {/* Tags */}
         {link.tags?.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-            {link.tags.slice(0, 3).map(t => <span key={t} className="tag-pill">#{t}</span>)}
+            {link.tags.slice(0, 3).map((t) => <span key={t} className="tag-pill">#{t}</span>)}
             {link.tags.length > 3 && <span className="tag-pill">+{link.tags.length - 3}</span>}
           </div>
         )}
 
-        {/* Notes (expanded) */}
         {expanded && link.notes && (
           <p style={{ fontSize: 13, color: "var(--ink-light)", marginBottom: 10, lineHeight: 1.55, borderTop: `1px dashed ${pal.accent}55`, paddingTop: 8 }}>
             {link.notes}
           </p>
         )}
 
-        {/* Date + actions */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
           <span style={{ fontSize: 11, color: "var(--ink-light)" }}>{link.saved}</span>
-          <div style={{ display: "flex", gap: 4 }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: "flex", gap: 4 }} onClick={(e) => e.stopPropagation()}>
             <button className="btn-sm" onClick={onSummarise} style={{ background: pal.accent, color: "#fff", fontSize: 12, padding: "4px 10px" }}>✨</button>
             <button className="btn-sm" onClick={onEdit} style={{ background: "rgba(0,0,0,0.08)", color: "var(--ink)", fontSize: 12, padding: "4px 10px" }}>✏️</button>
             <button className="btn-sm" onClick={() => { if (window.confirm("Remove this link?")) onDelete(); }} style={{ background: "rgba(232,93,74,0.12)", color: "#e85d4a", fontSize: 12, padding: "4px 10px" }}>✕</button>
