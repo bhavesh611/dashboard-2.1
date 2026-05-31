@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── Supabase client ───────────────────────────────────────────────────────────
+// Anon key is public by design — safe to embed in client-side code.
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_URL  || "https://zrpvufykyamqqlemnqbv.supabase.co",
+  import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpycHZ1ZnlreWFtcXFsZW1ucWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTAyODYsImV4cCI6MjA5NTc4NjI4Nn0.ZuXNjLU_23f8nnD__LNcvnZyiJ28o3WR0k8iuHQwouk"
 );
 
 async function fetchAll() {
